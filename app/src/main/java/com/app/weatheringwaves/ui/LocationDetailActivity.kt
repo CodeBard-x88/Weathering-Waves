@@ -111,7 +111,7 @@ class LocationDetailActivity : AppCompatActivity() {
                 val client = ApiConfig.getApiService().getForecastData(
                     apiKey = BuildConfig.WEATHER_API_KEY,
                     location = location,
-                    days = "3",
+                    days = "5",
                     airQuality = "yes",
                     alerts = "no"
                 )
@@ -137,7 +137,7 @@ class LocationDetailActivity : AppCompatActivity() {
                                     responseBody.forecast.forecastday[0].day.mintempC.toString()
                                         .substringBefore(".") + "°C"
                                 val maxTemperature =
-                                    responseBody.forecast.forecastday[0].day.mintempC.toString()
+                                    responseBody.forecast.forecastday[0].day.maxtempC.toString()
                                         .substringBefore(".") + "°C"
                                 tvMinMaxTemperature.text =
                                     "Min:$minTemperature    Max:$maxTemperature"
@@ -275,26 +275,26 @@ class LocationDetailActivity : AppCompatActivity() {
 
 //        USE THIS CODE BELOW IF WANT TO USE AirQualityDialogFragment
 //
-//        // get location data from MainActivity
+        // get location data from MainActivity
 //        val defaultLatLong = intent.getStringExtra(DEFAULT_LOC_KEY)
 //        val selectedLatLong = intent.getStringExtra(SELECTED_LOC_KEY)
-//
-//        // send location data to AirQualityDialogFragment
-//        if (selectedLatLong.isNullOrEmpty()) {
-//            val dialog = AirQualityDialogFragment()
-//            val defaultLatLongBundle = Bundle()
-//            defaultLatLongBundle.putString(DATA_KEY, defaultLatLong)
-//
-//            dialog.arguments = defaultLatLongBundle
-//            dialog.show(supportFragmentManager, SEND_KEY)
-//        } else {
-//            val dialog = AirQualityDialogFragment()
-//            val selectedLatLongBundle = Bundle()
-//            selectedLatLongBundle.putString(DATA_KEY, selectedLatLong)
-//
-//            dialog.arguments = selectedLatLongBundle
-//            dialog.show(supportFragmentManager, SEND_KEY)
-//        }
+
+        // send location data to AirQualityDialogFragment
+        if (selectedLatLong.isNullOrEmpty()) {
+            val dialog = AirQualityDialogFragment()
+            val defaultLatLongBundle = Bundle()
+            defaultLatLongBundle.putString(DATA_KEY, defaultLatLong)
+
+            dialog.arguments = defaultLatLongBundle
+            dialog.show(supportFragmentManager, SEND_KEY)
+        } else {
+            val dialog = AirQualityDialogFragment()
+            val selectedLatLongBundle = Bundle()
+            selectedLatLongBundle.putString(DATA_KEY, selectedLatLong)
+
+            dialog.arguments = selectedLatLongBundle
+            dialog.show(supportFragmentManager, SEND_KEY)
+        }
     }
 
     private fun getAqiData(
@@ -355,7 +355,7 @@ class LocationDetailActivity : AppCompatActivity() {
     companion object {
         const val SELECTED_LOC_KEY = "1"
         const val DEFAULT_LOC_KEY = "0"
-//        const val DATA_KEY = "100"
-//        const val SEND_KEY = "300"
+        const val DATA_KEY = "100"
+        const val SEND_KEY = "300"
     }
 }

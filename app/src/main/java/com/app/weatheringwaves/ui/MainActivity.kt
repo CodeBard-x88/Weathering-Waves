@@ -1,12 +1,16 @@
 package com.app.weatheringwaves.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -38,6 +42,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import com.app.weatheringwaves.api.response.WeatherData
+import com.app.weatheringwaves.api.response.Current
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvCityName: TextView
@@ -48,6 +54,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imgLocationDetails: ImageView
     private lateinit var imgSearchIcon: ImageView
     private lateinit var recyclerView: RecyclerView
+    private lateinit var btnSaveFavorite: Button
+    private lateinit var btnLoadFavorite: Button
 
     private lateinit var materialCardView: MaterialCardView
 
@@ -59,6 +67,7 @@ class MainActivity : AppCompatActivity() {
 
     private var selectedLatLong = ""
     private var defaultLatLong = ""
+    private var currentLocation: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +105,7 @@ class MainActivity : AppCompatActivity() {
         // set selected location from search
         supportFragmentManager.setFragmentResultListener(REQUEST_KEY, this) { _, bundle ->
             selectedLatLong = bundle.getString(DATA_KEY) ?: ""
+            currentLocation = selectedLatLong
             getCurrentForecastData(selectedLatLong)
         }
 
@@ -113,6 +123,16 @@ class MainActivity : AppCompatActivity() {
         }
         materialCardView = findViewById(R.id.materialCardView_hourly)
         materialCardView.background = shapeDrawable
+
+        btnSaveFavorite = findViewById(R.id.btn_save_favorite)
+        btnSaveFavorite.setOnClickListener {
+            saveFavoriteLocation()
+        }
+
+        btnLoadFavorite = findViewById(R.id.btn_load_favorite)
+        btnLoadFavorite.setOnClickListener {
+            loadFavoriteLocationDetails()
+        }
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -144,6 +164,7 @@ class MainActivity : AppCompatActivity() {
             fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     val latLong = "${location.latitude},${location.longitude}"
+                    currentLocation = latLong;
                     getCurrentForecastData(latLong)
                     Log.d("LatLong", latLong)
                 } else {
@@ -239,6 +260,8 @@ class MainActivity : AppCompatActivity() {
                             context = this@MainActivity, forecastHourlyList = forecastHourlyList
                         )
                         recyclerView.adapter = forecastHourlyAdapter
+
+                        updateWeatherUI(responseBody.current.condition.text)
                     }
                 }
                 Log.d("Success", "onResponse: ${response.code()}")
@@ -259,6 +282,7 @@ class MainActivity : AppCompatActivity() {
             fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     defaultLatLong = "${location.latitude},${location.longitude}"
+                    currentLocation = defaultLatLong
                     Log.d("LatLong", "${location.latitude},${location.longitude}")
 
                     val intent = Intent(this, LocationDetailActivity::class.java)
@@ -280,17 +304,155 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openSearchFragment() {
+        findViewById<View>(R.id.fragment_container).visibility = View.VISIBLE
+        findViewById<View>(R.id.main).visibility = View.GONE
+
         supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, SearchLocationFragment()).addToBackStack(null)
+            .replace(R.id.fragment_container, SearchLocationFragment())
+            .addToBackStack(null)
             .commit()
 
         supportFragmentManager.addOnBackStackChangedListener {
             if (supportFragmentManager.backStackEntryCount == 0) {
                 findViewById<View>(R.id.main).visibility = View.VISIBLE
-            } else {
-                findViewById<View>(R.id.main).visibility = View.GONE
+                findViewById<View>(R.id.fragment_container).visibility = View.GONE
             }
         }
+
+    }
+
+    private fun saveFavoriteLocation() {
+        val sharedPreferences = getSharedPreferences("WeatheringWavesPrefs", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+
+        val latLong = currentLocation
+
+        if (latLong.isNotEmpty() && latLong.contains(",")) {
+            val parts = latLong.split(",")
+            editor.putString("favorite_latitude", parts[0])
+            editor.putString("favorite_longitude", parts[1])
+            editor.apply()
+            Toast.makeText(this, "Location saved as favorite", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Location data not available yet. Please try again.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+    private fun loadFavoriteLocationDetails() {
+        val sharedPreferences = getSharedPreferences("WeatheringWavesPrefs", Context.MODE_PRIVATE)
+        val latitude = sharedPreferences.getString("favorite_latitude", null)
+        val longitude = sharedPreferences.getString("favorite_longitude", null)
+        if (latitude != null && longitude != null) {
+            val latLong = "$latitude,$longitude"
+            getCurrentForecastData(latLong)
+        } else {
+            Toast.makeText(this, "No favorite location saved", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateBackgroundTheme(condition: String) {
+        val rootLayout = findViewById<View>(R.id.root_layout)
+        val backgroundDrawable = when {
+            // Clear or sunny
+            condition.contains("sunny", ignoreCase = true) || condition.contains("clear", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#FFD700"), Color.parseColor("#FFA500")) // bright yellow-orange
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Cloudy or Overcast
+            condition.contains("cloudy", ignoreCase = true) || condition.contains("overcast", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#B0BEC5"), Color.parseColor("#78909C")) // gray tones
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Rain, drizzle, showers
+            condition.contains("rain", ignoreCase = true) || condition.contains("drizzle", ignoreCase = true)
+                    || condition.contains("showers", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#5C6BC0"), Color.parseColor("#1E88E5")) // blue/purple rain
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Thunderstorm, lightning
+            condition.contains("thunder", ignoreCase = true) || condition.contains("lightning", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#424242"), Color.parseColor("#000000")) // dark gray/black
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Snow, blizzard
+            condition.contains("snow", ignoreCase = true) || condition.contains("blizzard", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#ECEFF1"), Color.parseColor("#CFD8DC")) // white/light gray
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Fog, mist, haze
+            condition.contains("fog", ignoreCase = true) || condition.contains("mist", ignoreCase = true)
+                    || condition.contains("haze", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#90A4AE"), Color.parseColor("#B0BEC5")) // bluish gray
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Ice, sleet, freezing rain
+            condition.contains("ice", ignoreCase = true) || condition.contains("sleet", ignoreCase = true)
+                    || condition.contains("freezing", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#B3E5FC"), Color.parseColor("#81D4FA")) // icy blue tones
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Smoke, dust, sand
+            condition.contains("smoke", ignoreCase = true) || condition.contains("dust", ignoreCase = true)
+                    || condition.contains("sand", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#D7CCC8"), Color.parseColor("#A1887F")) // dusty brown
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Partly cloudy or mostly sunny
+            condition.contains("partly", ignoreCase = true) || condition.contains("mostly", ignoreCase = true) -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#FFF176"), Color.parseColor("#FFD54F")) // light yellow/gold
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+
+            // Default fallback
+            else -> {
+                GradientDrawable().apply {
+                    colors = intArrayOf(Color.parseColor("#87CEEB"), Color.parseColor("#B0E0E6")) // default sky blue
+                    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                }
+            }
+        }
+
+        rootLayout.background = backgroundDrawable
+    }
+
+
+    private fun updateWeatherUI(currentCondition: String) {
+        updateBackgroundTheme(currentCondition)
+    }
+
+    private fun updateLocationUI() {
+        tvCityName.text = currentLocation
+    }
+
+    private fun fetchWeatherData() {
+        getCurrentForecastData(currentLocation)
     }
 
     companion object {

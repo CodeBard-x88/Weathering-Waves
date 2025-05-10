@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -44,6 +45,13 @@ import java.util.Locale
 import java.util.TimeZone
 import com.app.weatheringwaves.api.response.WeatherData
 import com.app.weatheringwaves.api.response.Current
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
+import com.app.weatheringwaves.worker.WeatherUpdateWorker
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvCityName: TextView
@@ -133,6 +141,9 @@ class MainActivity : AppCompatActivity() {
         btnLoadFavorite.setOnClickListener {
             loadFavoriteLocationDetails()
         }
+
+        createNotificationChannel()
+        scheduleWeatherUpdates()
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -453,6 +464,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun fetchWeatherData() {
         getCurrentForecastData(currentLocation)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Weather Updates"
+            val descriptionText = "Daily weather update notifications"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel("weather_updates", name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun scheduleWeatherUpdates() {
+        val workRequest = PeriodicWorkRequestBuilder<WeatherUpdateWorker>(1, TimeUnit.DAYS)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "weather_updates",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 
     companion object {

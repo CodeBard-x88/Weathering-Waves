@@ -67,4 +67,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }

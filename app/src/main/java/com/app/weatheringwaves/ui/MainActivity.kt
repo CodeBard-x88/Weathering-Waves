@@ -121,7 +121,7 @@ class MainActivity : AppCompatActivity() {
         imgLocationDetails.setOnClickListener {
             showDetailLocationData()
         }
-
+//comment
         // material card view rounded top only
         val shapeDrawable = MaterialShapeDrawable().apply {
             shapeAppearanceModel = ShapeAppearanceModel.builder()
